@@ -6,16 +6,60 @@ import {
     Color,
     showToast,
     Toast,
+    Form,
+    useNavigation,
   } from "@raycast/api";
   import { useState, useEffect } from "react";
   import { api } from "./api";
-  import { Session, SessionEvent } from './types';
+  import { Session, SessionEvent, Context } from './types';
+  
+  function CreateContextForm({
+    onSubmit,
+  }: {
+    onSubmit: (name: string, description: string) => Promise<void>;
+  }) {
+    const [name, setName] = useState("");
+    const [description, setDescription] = useState("");
+    const { pop } = useNavigation();
+
+    return (
+      <Form
+        actions={
+          <ActionPanel>
+            <Action.SubmitForm
+              title="Create New Context"
+              onSubmit={async () => {
+                await onSubmit(name, description);
+                pop();
+              }}
+            />
+          </ActionPanel>
+        }
+      >
+        <Form.TextField
+          id="name"
+          title="Context Name"
+          placeholder="Enter context name"
+          value={name}
+          onChange={setName}
+        />
+        <Form.TextField
+          id="description"
+          title="Description"
+          placeholder="Enter context description"
+          value={description}
+          onChange={setDescription}
+        />
+      </Form>
+    );
+  }
   
   export default function Command() {
     const [activeSession, setActiveSession] = useState<Session | null>(null);
     const [sessionEvents, setSessionEvents] = useState<SessionEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchText, setSearchText] = useState("");
+    const [contexts, setContexts] = useState<Context[]>([]);
   
     // Load active session on mount
     useEffect(() => {
@@ -95,6 +139,20 @@ import {
       }
     }
   
+    useEffect(() => {
+      loadContexts();
+    }, []);
+  
+    async function loadContexts() {
+      try {
+        const availableContexts = await api.getContexts();
+        setContexts(availableContexts);
+      } catch (error) {
+        console.error('Failed to load contexts:', error);
+        await showToast(Toast.Style.Failure, 'Failed to load contexts');
+      }
+    }
+  
     return (
       <List
         isLoading={isLoading}
@@ -151,59 +209,41 @@ import {
   
         {/* Quick Actions Section */}
         <List.Section title="Quick Actions">
-          {!activeSession ? (
-            <>
-              <List.Item
-                icon={Icon.Monitor}
-                title="Start Work Session"
-                actions={
-                  <ActionPanel>
-                    <Action
-                      title="Start Session"
-                      onAction={() => startNewSession("Work")}
-                    />
-                  </ActionPanel>
+        <List.Item
+          icon={Icon.Plus}
+          title="New Context"
+          actions={
+            <ActionPanel>
+              <Action.Push
+                title="Create Custom Session"
+                target={
+                  <CreateContextForm 
+                    onSubmit={async (name, description) => {
+                      await api.createContext(name, description);
+                      await loadContexts();
+                    }} 
+                  />
                 }
               />
-              <List.Item
-                icon={Icon.Book}
-                title="Start Learning Session"
-                actions={
-                  <ActionPanel>
-                    <Action
-                      title="Start Session"
-                      onAction={() => startNewSession("Learning")}
-                    />
-                  </ActionPanel>
-                }
-              />
-              <List.Item
-                icon={Icon.Hammer}
-                title="Start Project Session"
-                actions={
-                  <ActionPanel>
-                    <Action
-                      title="Start Session"
-                      onAction={() => startNewSession("Project")}
-                    />
-                  </ActionPanel>
-                }
-              />
-            </>
-          ) : (
+            </ActionPanel>
+          }
+        />
+          {!activeSession && contexts.map(context => (
             <List.Item
-              icon={Icon.Document}
-              title="View Full Summary"
+              key={context.context_id}
+              icon={Icon.Circle}
+              title={`Start ${context.name} Session`}
+              subtitle={context.description}
               actions={
                 <ActionPanel>
                   <Action
-                    title="Generate Summary"
-                    onAction={generateSummary}
+                    title="Start Session"
+                    onAction={() => startNewSession(context.name)}
                   />
                 </ActionPanel>
               }
             />
-          )}
+          ))}
         </List.Section>
       </List>
     );

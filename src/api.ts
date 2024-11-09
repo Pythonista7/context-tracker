@@ -6,7 +6,7 @@ import fetch from 'node-fetch';  // For Node < 18
 // src/api.ts
 const API_BASE = 'http://localhost:5001';
 
-import { Context, Session, SessionEvent } from './types';
+import { Context, Session, SessionEvent, SessionSummary } from './types';
 
 class ApiClient {
   private async fetchApi<T>(endpoint: string, options: {
@@ -53,12 +53,16 @@ class ApiClient {
     return this.fetchApi(`/session/${sessionId}/events`);
   }
 
-  async generateSummary(sessionId: number): Promise<any> {
+  async generateSummary(sessionId: number): Promise<SessionSummary> {
     return this.fetchApi(`/session/${sessionId}/summary`);
   }
 
   async getActiveSessions(): Promise<{ active_sessions: Session[]; count: number }> {
     return this.fetchApi('/sessions/active');
+  }
+
+  async getContexts(): Promise<Context[]> {
+    return this.fetchApi('/context/list');
   }
 }
 

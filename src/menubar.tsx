@@ -2,17 +2,29 @@
 import { useState, useEffect } from "react";
 import { MenuBarExtra, Icon, showToast, Toast, Color } from "@raycast/api";
 import { api } from "./api";
-import { Session } from './types';
+import { Session, Context } from './types';
 
 export default function Command() {
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [contexts, setContexts] = useState<Context[]>([]);
 
   useEffect(() => {
     checkActiveSession();
+    loadContexts();
     const interval = setInterval(checkActiveSession, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  async function loadContexts() {
+    try {
+      const availableContexts = await api.getContexts();
+      setContexts(availableContexts);
+    } catch (error) {
+      console.error('Failed to load contexts:', error);
+      await showToast(Toast.Style.Failure, 'Failed to load contexts');
+    }
+  }
 
   async function checkActiveSession() {
     try {
@@ -99,30 +111,19 @@ export default function Command() {
           <MenuBarExtra.Item
             title="Generate Summary"
             icon={Icon.Document}
-            shortcut={{ modifiers: ["cmd"], key: "s" }}
             onAction={generateSummary}
           />
         </>
       ) : (
         <>
-          <MenuBarExtra.Item
-            title="Start Work Session"
-            icon={Icon.Monitor}
-            shortcut={{ modifiers: ["cmd"], key: "1" }}
-            onAction={() => startNewSession("Work")}
-          />
-          <MenuBarExtra.Item
-            title="Start Learning Session"
-            icon={Icon.Book}
-            shortcut={{ modifiers: ["cmd"], key: "2" }}
-            onAction={() => startNewSession("Learning")}
-          />
-          <MenuBarExtra.Item
-            title="Start Project Session"
-            icon={Icon.Hammer}
-            shortcut={{ modifiers: ["cmd"], key: "3" }}
-            onAction={() => startNewSession("Project")}
-          />
+          {contexts.map(context => (
+            <MenuBarExtra.Item
+              key={context.context_id}
+              title={`Start ${context.name} Session`}
+              icon={Icon.Circle}
+              onAction={() => startNewSession(context.name)}
+            />
+          ))}
         </>
       )}
     </MenuBarExtra>
