@@ -8,6 +8,8 @@ import {
     Toast,
     Form,
     useNavigation,
+    Detail,
+    open,
   } from "@raycast/api";
   import { useState, useEffect } from "react";
   import { api } from "./api";
@@ -20,7 +22,7 @@ import {
   }) {
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
-    const { pop } = useNavigation();
+    const { pop,push } = useNavigation();
 
     return (
       <Form
@@ -60,6 +62,7 @@ import {
     const [isLoading, setIsLoading] = useState(true);
     const [searchText, setSearchText] = useState("");
     const [contexts, setContexts] = useState<Context[]>([]);
+    const { push } = useNavigation();
   
     // Load active session on mount
     useEffect(() => {
@@ -114,13 +117,18 @@ import {
   
     async function endCurrentSession() {
       if (!activeSession) return;
-  
+
       try {
-        await api.endSession(activeSession.session_id);
-        console.log(`Session ${activeSession.session_id} ended`);
+        const {session_id, summary} = await api.endSession(activeSession.session_id);
+        const { path } = await api.saveSession(session_id, "Save the session summary to meaningfully formatted markdown file." );
+        console.log(`Session ${session_id} ended`);
+        
         setActiveSession(null);
         setSessionEvents([]);
-        await showToast(Toast.Style.Success, 'Session ended');
+        
+        // Open in Obsidian using the obsidian:// protocol
+        await open(`obsidian://open?vault=context-tracker&file=${encodeURIComponent(path)}`);
+        await showToast(Toast.Style.Success, 'Session saved and ended');
       } catch (error) {
         console.error('Failed to end session:', error);
         await showToast(Toast.Style.Failure, 'Failed to end session');
@@ -131,8 +139,41 @@ import {
       if (!activeSession) return;
   
       try {
-        await api.generateSummary(activeSession.session_id);
+        const summary = await api.generateSummary(activeSession.session_id);
+        
+        const markdownContent = `# Session Summary
+        
+  ## Overview
+  ${summary.overview}
+  
+  ## Key Topics
+  ${summary.key_topics.map(topic => `- ${topic}`).join('\n')}
+  
+  ## Learning Highlights
+  ${summary.learning_highlights.map(highlight => `- ${highlight}`).join('\n')}
+  
+  ## Resources Used
+  ${summary.resources_used.map(resource => `- ${resource}`).join('\n')}
+  
+  ## Conclusion
+  ${summary.conclusion}
+  `;
+  
         await showToast(Toast.Style.Success, 'Summary generated');
+        push(
+          <Detail 
+            markdown={markdownContent}
+            actions={
+              <ActionPanel>
+                <Action.CopyToClipboard
+                  title="Copy Markdown"
+                  content={markdownContent}
+                />
+              </ActionPanel>
+            }
+          />
+        );
+        
       } catch (error) {
         console.error('Failed to generate summary:', error);
         await showToast(Toast.Style.Failure, 'Failed to generate summary');
@@ -165,7 +206,7 @@ import {
           <List.Section title="Active Session">
             <List.Item
               icon={{ source: Icon.Video, tintColor: Color.Red }}
-              title={`Recording since ${new Date(activeSession.start_time).toLocaleTimeString()}`}
+              title={`Recording since ${(new Date(activeSession.start_time).toLocaleTimeString()).toString()}`}
               accessories={[
                 { icon: Icon.Clock },
                 { text: "Recording" }

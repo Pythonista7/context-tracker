@@ -4,6 +4,11 @@ export interface Context {
   description?: string;
 }
 
+export interface SessionEndResponse {
+  session_id: number;
+  summary: SessionSummary;
+}
+
 export interface Session {
   session_id: number;
   context_id: string;

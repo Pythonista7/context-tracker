@@ -1,0 +1,22 @@
+.session-summary {
+  padding: 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.summary-section {
+  margin-bottom: 1rem;
+}
+
+.summary-section h4 {
+  margin-bottom: 0.5rem;
+}
+
+.summary-section ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.summary-section li {
+  margin-bottom: 0.25rem;
+} 

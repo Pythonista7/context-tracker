@@ -6,7 +6,7 @@ import fetch from 'node-fetch';  // For Node < 18
 // src/api.ts
 const API_BASE = 'http://localhost:5001';
 
-import { Context, Session, SessionEvent, SessionSummary } from './types';
+import { Context, Session, SessionEndResponse, SessionEvent, SessionSummary } from './types';
 
 class ApiClient {
   private async fetchApi<T>(endpoint: string, options: {
@@ -43,7 +43,7 @@ class ApiClient {
     });
   }
 
-  async endSession(sessionId: number): Promise<void> {
+  async endSession(sessionId: number): Promise<SessionEndResponse> {
     return this.fetchApi(`/session/${sessionId}/end`, {
       method: 'POST',
     });
@@ -63,6 +63,13 @@ class ApiClient {
 
   async getContexts(): Promise<Context[]> {
     return this.fetchApi('/context/list');
+  }
+
+  async saveSession(sessionId: number,instructions: string): Promise<{ path: string }> {
+    return this.fetchApi(`/session/${sessionId}/save`, {
+      method: 'POST',
+      body: JSON.stringify({ instructions }),
+    });
   }
 }
 

@@ -1,13 +1,14 @@
 // src/menubar.tsx
 import { useState, useEffect } from "react";
-import { MenuBarExtra, Icon, showToast, Toast, Color } from "@raycast/api";
+import { MenuBarExtra, Icon, showToast, Toast, Color, Detail, open } from "@raycast/api";
 import { api } from "./api";
-import { Session, Context } from './types';
+import { Session, Context, SessionSummary } from './types';
 
 export default function Command() {
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [contexts, setContexts] = useState<Context[]>([]);
+  const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
 
   useEffect(() => {
     checkActiveSession();
@@ -55,13 +56,36 @@ export default function Command() {
     }
   }
 
+  // async function endCurrentSession() {
+  //   if (!activeSession) return;
+
+  //   try {
+  //     const { path } = await api.saveSession(activeSession.session_id,"Save the session summary to meaningfully formatted markdown file." );
+  //     await api.endSession(activeSession.session_id);
+  //     // Open in Obsidian using the obsidian:// protocol
+  //     await open(`obsidian://open?vault=context-tracker&file=${encodeURIComponent(path)}`);
+  //     await showToast(Toast.Style.Success, 'Session saved and ended');
+  //     setActiveSession(null);
+  //     await showToast(Toast.Style.Success, 'Session saved and ended');
+  //   } catch (error) {
+  //     console.error('Failed to end session:', error);
+  //     await showToast(Toast.Style.Failure, 'Failed to end session');
+  //   }
+  // }
+  
   async function endCurrentSession() {
     if (!activeSession) return;
 
     try {
-      await api.endSession(activeSession.session_id);
+      const {session_id, summary} = await api.endSession(activeSession.session_id);
+      const { path } = await api.saveSession(session_id, "Save the session summary to meaningfully formatted markdown file." );
+      console.log(`Session ${session_id} ended`);
+      
       setActiveSession(null);
-      await showToast(Toast.Style.Success, 'Session ended');
+      
+      // Open in Obsidian using the obsidian:// protocol
+      await open(`obsidian://open?vault=context-tracker&file=${encodeURIComponent(path)}`);
+      await showToast(Toast.Style.Success, 'Session saved and ended');
     } catch (error) {
       console.error('Failed to end session:', error);
       await showToast(Toast.Style.Failure, 'Failed to end session');
@@ -72,8 +96,30 @@ export default function Command() {
     if (!activeSession) return;
 
     try {
-      await api.generateSummary(activeSession.session_id);
-      await showToast(Toast.Style.Success, 'Summary generated');
+      const summary = await api.generateSummary(activeSession.session_id);
+      
+      const markdownContent = `# Session Summary
+      
+## Overview
+${summary.overview}
+
+## Key Topics
+${summary.key_topics.map(topic => `- ${topic}`).join('\n')}
+
+## Learning Highlights
+${summary.learning_highlights.map(highlight => `- ${highlight}`).join('\n')}
+
+## Resources Used
+${summary.resources_used.map(resource => `- ${resource}`).join('\n')}
+
+## Conclusion
+${summary.conclusion}
+`;
+
+      // Show the summary in a Detail view
+      await showToast(Toast.Style.Success, 'Summary MD generated');
+      return <Detail markdown={markdownContent} />;
+      
     } catch (error) {
       console.error('Failed to generate summary:', error);
       await showToast(Toast.Style.Failure, 'Failed to generate summary');
